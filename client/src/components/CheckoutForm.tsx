@@ -3,7 +3,6 @@ import { X, CreditCard, Truck, Shield } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import emailjs from '@emailjs/browser';
 import CustomAlert from './CustomAlert';
-import { navigateToPage } from '../utils/navigation';
 
 interface CheckoutFormProps {
   isOpen: boolean;
@@ -290,10 +289,15 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
     setShowSuccessModal(false);
     setOrderDetails(null);
     onClose();
-    // Navigate to home page
-    navigateToPage('home');
-    // Scroll to top
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'auto' }), 100);
+    
+    // Navigate to home page and scroll to top
+    window.location.hash = '#/';
+    window.dispatchEvent(new CustomEvent('navigate', { detail: { page: 'home' } }));
+    
+    // Small delay to ensure navigation completes before scrolling
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }, 200);
   };
   const subtotal = getTotalPrice();
   const shipping = 0; // Free shipping
@@ -302,50 +306,55 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
 
   // Success Modal Component
   const SuccessModal = () => {
-    if (!showSuccessModal || !orderDetails) return null;
+    if (!showSuccessModal || !orderDetails) {
+      return null;
+    }
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+        style={{ zIndex: 9999 }}
+      >
         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
           {/* Success Header */}
-          <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-center">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 p-8 text-center">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Order Placed Successfully!</h2>
-            <p className="text-green-100">Thank you for shopping with NIKZONE</p>
+            <h2 className="text-3xl font-bold text-white mb-2">🎉 Order Placed!</h2>
+            <p className="text-green-100 text-lg">Thank you for shopping with NIKZONE</p>
           </div>
           
           {/* Order Details */}
-          <div className="p-6">
+          <div className="p-8">
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-gray-600 text-sm">Order ID</p>
-                <p className="font-bold text-lg text-gray-900">{orderDetails.orderId}</p>
+                <p className="text-gray-600">Order ID</p>
+                <p className="font-bold text-xl text-gray-900">{orderDetails.orderId}</p>
               </div>
               
               <div className="border-t border-gray-200 pt-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Total Amount</span>
-                  <span className="font-bold text-xl text-gray-900">₹{orderDetails.totalAmount.toLocaleString()}</span>
+                  <span className="font-bold text-2xl text-green-600">₹{orderDetails.totalAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Payment Method</span>
-                  <span className="text-gray-900">Cash on Delivery</span>
+                  <span className="text-gray-900 font-medium">Cash on Delivery</span>
                 </div>
               </div>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <Truck className="w-5 h-5 text-blue-600" />
                   <span className="font-medium text-blue-900">Estimated Delivery</span>
                 </div>
-                <p className="text-blue-800 text-sm">{orderDetails.estimatedDelivery}</p>
+                <p className="text-blue-800 font-medium">{orderDetails.estimatedDelivery}</p>
               </div>
               
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-xl p-4">
                 <h4 className="font-medium text-gray-900 mb-2">What's Next?</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• You'll receive a confirmation email shortly</li>
@@ -355,10 +364,10 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
             
-            <div className="mt-6 space-y-3">
+            <div className="mt-8 space-y-3">
               <button
                 onClick={handleSuccessModalClose}
-                className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors duration-200"
+                className="w-full bg-black text-white py-4 rounded-xl font-medium hover:bg-gray-800 transition-colors duration-200 text-lg"
               >
                 Continue Shopping
               </button>
@@ -373,7 +382,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
                     type: 'success'
                   });
                 }}
-                className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+                className="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors duration-200"
               >
                 Copy Order ID
               </button>
@@ -385,7 +394,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
   };
   return (
     <>
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      {/* Main Checkout Form */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -682,10 +692,10 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
           type={alert.type}
         />
       </div>
-    </div>
-    
-    {/* Success Modal */}
-    <SuccessModal />
+      </div>
+      
+      {/* Success Modal - Rendered separately with higher z-index */}
+      <SuccessModal />
     </>
   );
 };
