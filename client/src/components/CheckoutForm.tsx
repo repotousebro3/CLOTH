@@ -3,6 +3,7 @@ import { X, CreditCard, Truck, Shield } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import emailjs from '@emailjs/browser';
 import CustomAlert from './CustomAlert';
+import { navigateToPage } from '../utils/navigation';
 
 interface CheckoutFormProps {
   isOpen: boolean;
@@ -47,6 +48,12 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
   });
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<{
+    orderId: string;
+    totalAmount: number;
+    estimatedDelivery: string;
+  } | null>(null);
   const [alert, setAlert] = useState<{
     isOpen: boolean;
     title: string;
@@ -153,6 +160,18 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
     return isValid;
   };
 
+  const getEstimatedDeliveryDate = () => {
+    const today = new Date();
+    const deliveryDate = new Date(today);
+    deliveryDate.setDate(today.getDate() + 5); // 5 days from now
+    
+    return deliveryDate.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -180,11 +199,15 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
 
     try {
       // Prepare order data for email
+      const orderId = `ORD-${Date.now()}`;
+      const totalAmount = getTotalPrice();
+      const estimatedDelivery = getEstimatedDeliveryDate();
+      
       const orderData = {
-        orderId: `ORD-${Date.now()}`,
+        orderId,
         customer: customerInfo,
         items: cartItems,
-        totalAmount: getTotalPrice(),
+        totalAmount,
         orderDate: new Date().toLocaleString(),
         paymentMethod: customerInfo.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'
       };
@@ -198,7 +221,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
         customer_phone: customerInfo.phone,
         customer_address: `${customerInfo.address}, ${customerInfo.city}, ${customerInfo.state} - ${customerInfo.pincode}`,
         payment_method: orderData.paymentMethod,
-        total_amount: `₹${getTotalPrice().toLocaleString()}`,
+        total_amount: `₹${totalAmount.toLocaleString()}`,
         order_date: orderData.orderDate,
         items_list: cartItems.map(item => 
           `${item.product.name} (Size: ${item.size}, Qty: ${item.quantity}, Price: ₹${item.product.price})`
@@ -225,11 +248,12 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
 
       // Clear cart and show success message
       clearCart();
-      setAlert({
-        isOpen: true,
-        title: 'Order Placed Successfully!',
-        message: `Your order ${orderData.orderId} has been placed successfully. You will receive a confirmation email shortly.`,
-        type: 'success'
+      
+      // Set order details for success modal
+      setOrderDetails({
+        orderId,
+        totalAmount,
+        estimatedDelivery
       });
 
       // Reset form
@@ -246,10 +270,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
       });
       setValidationErrors({});
 
-      // Close form after a delay
-      setTimeout(() => {
-        onClose();
-      }, 3000);
+      // Show success modal
+      setShowSuccessModal(true);
 
     } catch (error) {
       console.error('Error sending order email:', error);
@@ -264,12 +286,105 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    setOrderDetails(null);
+    onClose();
+    // Navigate to home page
+    navigateToPage('home');
+    // Scroll to top
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'auto' }), 100);
+  };
   const subtotal = getTotalPrice();
   const shipping = 0; // Free shipping
   const tax = Math.round(subtotal * 0.18); // 18% GST
   const total = subtotal + shipping + tax;
 
+  // Success Modal Component
+  const SuccessModal = () => {
+    if (!showSuccessModal || !orderDetails) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+          {/* Success Header */}
+          <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-center">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Order Placed Successfully!</h2>
+            <p className="text-green-100">Thank you for shopping with NIKZONE</p>
+          </div>
+          
+          {/* Order Details */}
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-gray-600 text-sm">Order ID</p>
+                <p className="font-bold text-lg text-gray-900">{orderDetails.orderId}</p>
+              </div>
+              
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">Total Amount</span>
+                  <span className="font-bold text-xl text-gray-900">₹{orderDetails.totalAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Payment Method</span>
+                  <span className="text-gray-900">Cash on Delivery</span>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Truck className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium text-blue-900">Estimated Delivery</span>
+                </div>
+                <p className="text-blue-800 text-sm">{orderDetails.estimatedDelivery}</p>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-2">What's Next?</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• You'll receive a confirmation email shortly</li>
+                  <li>• We'll notify you when your order is shipped</li>
+                  <li>• Track your order status via email updates</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={handleSuccessModalClose}
+                className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors duration-200"
+              >
+                Continue Shopping
+              </button>
+              <button
+                onClick={() => {
+                  // Copy order ID to clipboard
+                  navigator.clipboard.writeText(orderDetails.orderId);
+                  setAlert({
+                    isOpen: true,
+                    title: 'Copied!',
+                    message: 'Order ID copied to clipboard',
+                    type: 'success'
+                  });
+                }}
+                className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+              >
+                Copy Order ID
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
         {/* Header */}
@@ -568,6 +683,10 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ isOpen, onClose }) => {
         />
       </div>
     </div>
+    
+    {/* Success Modal */}
+    <SuccessModal />
+    </>
   );
 };
 
